@@ -85,6 +85,7 @@ func mount(source, destination, fsType string, flags int, options string) error 
 		"mount-fstype":      fsType,
 		"mount-flags":       flags,
 		"mount-options":     options,
+		"mount-custom":      "yes",
 	}).Debug()
 
 	if source == "" {
@@ -111,7 +112,9 @@ func mount(source, destination, fsType string, flags int, options string) error 
 	default:
 		absSource, err = filepath.EvalSymlinks(source)
 		if err != nil {
-			return grpcStatus.Errorf(codes.Internal, "Could not resolve symlink for source %v", source)
+			info, err := os.Stat(source)
+			agentLog.Debug("stat after symlink failure", info, err)
+			return grpcStatus.Errorf(codes.Internal, "Could not resolve symlink for source %v: %v", source, err)
 		}
 
 		if err = ensureDestinationExists(absSource, destination, fsType); err != nil {
