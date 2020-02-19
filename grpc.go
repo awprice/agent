@@ -338,17 +338,17 @@ func buildProcess(agentProcess *pb.Process, procID string, init bool) (*process,
 		return proc, nil
 	}
 
-	rStdin, wStdin, err := os.Pipe()
+	rStdin, wStdin, err := createPipe()
 	if err != nil {
 		return nil, err
 	}
 
-	rStdout, wStdout, err := os.Pipe()
+	rStdout, wStdout, err := createPipe()
 	if err != nil {
 		return nil, err
 	}
 
-	rStderr, wStderr, err := os.Pipe()
+	rStderr, wStderr, err := createPipe()
 	if err != nil {
 		return nil, err
 	}
@@ -362,6 +362,21 @@ func buildProcess(agentProcess *pb.Process, procID string, init bool) (*process,
 	proc.stderr = rStderr
 
 	return proc, nil
+}
+
+func createPipe() (*os.File, *os.File, error) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	extendPipe(r, w)
+	return r, w, nil
+}
+
+func extendPipe(r, w *os.File) {
+	for sz := 128 << 10; sz <= 2<<20; sz *= 2 {
+		syscall.Syscall(syscall.SYS_FCNTL, w.Fd(), syscall.F_SETPIPE_SZ, uintptr(sz))
+	}
 }
 
 func (a *agentGRPC) Check(ctx context.Context, req *pb.CheckRequest) (*pb.HealthCheckResponse, error) {
